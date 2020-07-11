@@ -3,7 +3,7 @@ import { t } from "@replay/core";
 import { Game, gameProps } from "../src";
 
 // defined in webpack
-declare const ASSET_NAMES: {};
+declare const ASSET_NAMES: { audioFileNames: ["boop.wav"] };
 
 const loadingTextures = [
   t.text({

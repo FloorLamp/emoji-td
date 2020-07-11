@@ -1,0 +1,19 @@
+{
+  "kinds": {
+    "0": {
+      "health": 100,
+      "speed": 1,
+      "sprite": "🍆"
+    },
+    "1": {
+      "health": 100,
+      "speed": 2,
+      "sprite": "🌹"
+    },
+    "2": {
+      "health": 100,
+      "speed": 3,
+      "sprite": "🙃"
+    }
+  }
+}
