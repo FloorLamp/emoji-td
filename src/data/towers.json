@@ -1,6 +1,7 @@
 {
   "0": {
     "sprite": "0️⃣",
+    "spriteSize": 32,
     "attack": "bullet",
     "range": 100,
     "delay": 60,
@@ -15,9 +16,10 @@
   },
   "1": {
     "sprite": "1️⃣",
+    "spriteSize": 32,
     "attack": "bullet",
     "range": 100,
-    "delay": 60,
+    "delay": 45,
     "bullet": {
       "sprite": "·",
       "color": "blue",
@@ -29,16 +31,17 @@
   },
   "2": {
     "sprite": "2️⃣",
+    "spriteSize": 32,
     "attack": "bullet",
     "range": 100,
-    "delay": 60,
+    "delay": 30,
     "bullet": {
       "sprite": "·",
       "color": "red",
       "spriteSize": 48,
       "speed": 7,
       "damage": 1,
-      "hits": 3
+      "hits": 2
     }
   }
 }

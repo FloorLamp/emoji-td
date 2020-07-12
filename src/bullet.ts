@@ -1,9 +1,10 @@
 import { makeSprite, t } from "@replay/core";
-import { Point, Speed, getVelocityVector } from "./map";
+import { Point, Speed, getVelocityVector, isWithinSquare } from "./map";
 import { EnemyT, getEnemyData } from "./enemy";
 
 export type BulletT = {
   readonly id: string;
+  readonly towerId: string;
   sprite: string;
   color?: string;
   spriteSize: number;
@@ -53,13 +54,9 @@ export const Bullet = makeSprite<BulletProps, BulletState>({
     const enemies = props.getNearbyEnemies();
     for (const enemy of enemies) {
       const { size } = getEnemyData(enemy.kind);
-      const halfSize = size / 2;
       if (
         enemy.health > 0 &&
-        x >= enemy.x - halfSize &&
-        x <= enemy.x + halfSize &&
-        y >= enemy.y - halfSize &&
-        y <= enemy.y + halfSize
+        isWithinSquare([x, y], [enemy.x, enemy.y], size / 2)
       ) {
         hits--;
         props.hit(enemy);

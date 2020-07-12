@@ -1,6 +1,7 @@
 import { makeSprite, t } from "@replay/core";
 
 import ENEMY_DATA from "./data/enemies.json";
+import { BulletT } from "./bullet";
 
 export interface EnemyData {
   kinds: {
@@ -42,6 +43,7 @@ export type EnemyT = {
   health: number;
   status: EnemyStatus;
   speed: number;
+  lastBullet: BulletT | null;
 };
 
 type EnemyProps = {
@@ -74,8 +76,9 @@ export const Enemy = makeSprite<EnemyProps, EnemyState>({
     if (status === EnemyStatus.DIEING) {
       deathAnimationF++;
 
-      if (die && deathAnimationF > DEATH_ANIMATION_FRAMES) {
+      if (die && deathAnimationF >= DEATH_ANIMATION_FRAMES) {
         die();
+        deathAnimationF = DEATH_ANIMATION_FRAMES;
       }
     }
 

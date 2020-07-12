@@ -10,6 +10,7 @@ import { Speed } from "./map";
 export interface TowerData {
   [key: string]: {
     sprite: string;
+    spriteSize: number;
     attack: string;
     range: number;
     delay: number;
@@ -31,16 +32,19 @@ export type TowerT = {
   readonly kind: TowerKindId;
   x: number;
   y: number;
+  isSelected: boolean;
+  kills: number;
 };
 
 type TowerProps = {
   tower: TowerT;
-  getEnemiesInRange: () => EnemyT[];
+  getEnemiesInRange: (range: number) => EnemyT[];
   fireBullet: (bullet: BulletT) => void;
 };
 
 type TowerState = {
-  t: number;
+  f: number;
+  shots: number;
 };
 
 export const getTowerData = (kind: TowerKindId) =>
@@ -49,50 +53,79 @@ export const getTowerData = (kind: TowerKindId) =>
 export const Tower = makeSprite<TowerProps, TowerState>({
   init() {
     return {
-      t: 0,
+      shots: 0,
+      f: 0,
     };
   },
 
   loop({ props, state }) {
-    const {
-      tower: { id, kind, x, y },
-      getEnemiesInRange,
-      fireBullet,
-    } = props;
-    const { delay, bullet } = getTowerData(kind);
-    let { t } = state;
-    if (t % delay === 0) {
-      const targets = getEnemiesInRange().sort(
+    const { tower, getEnemiesInRange, fireBullet } = props;
+    const { id, kind, x, y } = tower;
+
+    const { range, delay, bullet } = getTowerData(kind);
+    let { shots, f } = state;
+    if (f > 0) {
+      f = (f + 1) % delay;
+    }
+
+    if (f === 0) {
+      const targets = getEnemiesInRange(range).sort(
         (a, b) => b.distance - a.distance
       );
       if (targets.length) {
         if (bullet) {
           fireBullet({
             ...bullet,
-            id: `${id}-bullet-${t}`,
+            id: `${id}-bullet-${shots++}`,
+            towerId: id,
             source: [x, y],
             target: [targets[0].x, targets[0].y],
           });
+          f++;
         }
       }
     }
 
-    t++;
     return {
-      t,
+      shots,
+      f,
     };
   },
 
-  render({ props }) {
-    const { kind, x, y } = props.tower;
+  render({ props, state, device }) {
+    const { kind, x, y, isSelected, kills } = props.tower;
+    const { sprite, range } = getTowerData(kind);
+    const { size } = device;
+    const rangeCircle = isSelected
+      ? [
+          t.circle({
+            radius: range,
+            color: "rebeccapurple",
+            opacity: 0.4,
+            x,
+            y,
+          }),
+        ]
+      : [];
+    const details = isSelected
+      ? t.text({
+          text: `Kills: ${kills}`,
+          color: "black",
+          x: -size.width / 2 + 10,
+          y: -size.height / 2 + size.heightMargin + 80,
+          align: "left",
+        })
+      : null;
     return [
       t.text({
         font: { name: "Calibri", size: 32 },
-        text: getTowerData(kind).sprite,
+        text: sprite,
         color: "#000",
         x,
         y,
       }),
+      ...rangeCircle,
+      details,
     ];
   },
 });

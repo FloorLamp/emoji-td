@@ -2,11 +2,13 @@ import { makeSprite, t, DeviceSize } from "@replay/core";
 import { WebInputs } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
 
-import { TowerKindId, getTowerData } from "./tower";
-import { Point } from "./map";
+import { TowerKindId, getTowerData, TowerT } from "./tower";
+import { Point, isWithinRect, isWithinSquare } from "./map";
 
 type ControlProps = {
+  towers: TowerT[];
   addTower: (t: { x: number; y: number; kind: TowerKindId }) => void;
+  selectTower: (tower: TowerT | null) => void;
 };
 
 type TowerButton = {
@@ -19,22 +21,23 @@ type TowerButton = {
 enum ControlAction {
   NONE,
   PLACE_TOWER,
+  SELECT_TOWER,
 }
 
 type ControlState = {
   action: ControlAction;
   placeTowerKind: TowerKindId | undefined;
-  towers: TowerButton[];
+  towerButtons: TowerButton[];
 };
 
 const boxHeight = 50;
 const buttonSize = 8;
 
-const setButtonPositions = (size: DeviceSize, towers: TowerButton[]) => {
+const setButtonPositions = (size: DeviceSize, towerButtons: TowerButton[]) => {
   const width = size.width + size.widthMargin * 2;
   const left = -width / 2;
   const y = -(size.height + size.heightMargin * 2) / 2 + boxHeight / 2;
-  return towers.map(
+  return towerButtons.map(
     (tb, i): TowerButton => {
       const x = left + 25 + i * 25;
       return {
@@ -65,42 +68,73 @@ export const Control = makeSprite<
     return {
       action: ControlAction.NONE,
       placeTowerKind: undefined,
-      towers: setButtonPositions(size, initialTowers),
+      towerButtons: setButtonPositions(size, initialTowers),
     };
   },
 
   loop({ props, state, device }) {
-    const { towers } = state;
+    const { towerButtons } = state;
     let { action, placeTowerKind } = state;
-    const { log, inputs } = device;
+    const { inputs, size } = device;
     const { pointer } = inputs;
+    const boundsTop = -(size.height + size.heightMargin * 2) / 2 + boxHeight;
+
     if (pointer.justPressed) {
-      if (action === ControlAction.NONE) {
-        const clickedButton = towers.find(
-          (tb) =>
-            tb.bounds &&
-            pointer.x >= tb.bounds[0][0] &&
-            pointer.x <= tb.bounds[1][0] &&
-            pointer.y >= tb.bounds[0][1] &&
-            pointer.y <= tb.bounds[1][1]
-        );
-        if (clickedButton) {
-          log(clickedButton.kind);
-          action = ControlAction.PLACE_TOWER;
-          placeTowerKind = clickedButton.kind;
-        }
-      } else {
-        if (placeTowerKind) {
+      switch (action) {
+        case ControlAction.NONE:
+          if (pointer.y < boundsTop) {
+            // Click on level object
+            const clickedButton = towerButtons.find(
+              (tb) =>
+                tb.bounds &&
+                isWithinRect([pointer.x, pointer.y], tb.bounds[0], tb.bounds[1])
+            );
+            if (clickedButton) {
+              action = ControlAction.PLACE_TOWER;
+              placeTowerKind = clickedButton.kind;
+            }
+          } else {
+            // Click in control area
+            const clickedTower = props.towers.find((t) => {
+              const { spriteSize } = getTowerData(t.kind);
+              return isWithinSquare(
+                [pointer.x, pointer.y],
+                [t.x, t.y],
+                spriteSize / 2
+              );
+            });
+            if (clickedTower) {
+              action = ControlAction.SELECT_TOWER;
+              props.selectTower(clickedTower);
+            }
+          }
+          break;
+        case ControlAction.PLACE_TOWER:
           action = ControlAction.NONE;
-          props.addTower({ x: pointer.x, y: pointer.y, kind: placeTowerKind });
-        }
+
+          // TODO: Check collision with path
+          if (pointer.y > boundsTop) {
+            if (placeTowerKind) {
+              props.addTower({
+                x: pointer.x,
+                y: pointer.y,
+                kind: placeTowerKind,
+              });
+            }
+          }
+          break;
+        case ControlAction.SELECT_TOWER:
+          action = ControlAction.NONE;
+          props.selectTower(null);
+        default:
+          break;
       }
     }
-    return { towers, action, placeTowerKind };
+    return { towerButtons, action, placeTowerKind };
   },
 
   render({ state, device }) {
-    const { towers, action, placeTowerKind } = state;
+    const { towerButtons, action, placeTowerKind } = state;
     const { size, inputs } = device;
     const { pointer } = inputs;
 
@@ -110,7 +144,7 @@ export const Control = makeSprite<
             t.circle({
               radius: getTowerData(placeTowerKind).range,
               color: "rebeccapurple",
-              opacity: 0.5,
+              opacity: 0.4,
               x: pointer.x,
               y: pointer.y,
             }),
@@ -131,7 +165,7 @@ export const Control = makeSprite<
         height: boxHeight,
         y: -(size.height + size.heightMargin * 2) / 2 + boxHeight / 2,
       }),
-      ...towers.map(({ kind, x, y }) =>
+      ...towerButtons.map(({ kind, x, y }) =>
         t.text({
           font: { name: "Calibri", size: 16 },
           text: getTowerData(kind).sprite,

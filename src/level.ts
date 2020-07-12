@@ -2,7 +2,13 @@ import { makeSprite, t } from "@replay/core";
 import { WebInputs } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
 
-import { Path, PathLengths, getPathLengths, interpolateDistance } from "./map";
+import {
+  Path,
+  PathLengths,
+  getPathLengths,
+  interpolateDistance,
+  isWithinCircle,
+} from "./map";
 import {
   Enemy,
   EnemyT,
@@ -101,6 +107,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           health: data.health,
           status: EnemyStatus.NOT_SPAWNED,
           speed: data.speed,
+          lastBullet: null,
         });
         enemyCount++;
       });
@@ -121,8 +128,8 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
       return state;
     }
 
-    const { pathLengths, path, towers, ...rest } = state;
-    let { t, lives, enemies } = state;
+    const { pathLengths, path, ...rest } = state;
+    let { t, lives, towers, enemies } = state;
     t++;
 
     // Spawn
@@ -133,7 +140,19 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     // Die
     enemies
       .filter((e) => e.status === EnemyStatus.ACTIVE && e.health <= 0)
-      .forEach((e) => (e.status = EnemyStatus.DIEING));
+      .forEach((e) => {
+        e.status = EnemyStatus.DIEING;
+
+        // Increment tower kill count
+        if (e.lastBullet) {
+          const towerIdx = towers.findIndex(
+            (t) => e.lastBullet && t.id === e.lastBullet.towerId
+          );
+          towers = replaceBy(towers, towerIdx, {
+            kills: towers[towerIdx].kills + 1,
+          });
+        }
+      });
 
     // Update active
     enemies
@@ -144,7 +163,6 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           lives--;
           e.status = EnemyStatus.PASSED;
           // device.audio("boop.wav").play();
-          console.log(`${e.id} arrived`);
           return;
         }
 
@@ -213,7 +231,10 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         Tower({
           id: tower.id,
           tower,
-          getEnemiesInRange: () => activeEnemies,
+          getEnemiesInRange: (range) =>
+            activeEnemies.filter((e) =>
+              isWithinCircle([tower.x, tower.y], [e.x, e.y], range)
+            ),
           fireBullet: (bullet) => {
             updateState((prevState) => ({
               ...prevState,
@@ -234,6 +255,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
                 ...prevState,
                 enemies: replaceBy(prevState.enemies, idx, {
                   health: enemy.health - bullet.damage,
+                  lastBullet: bullet,
                 }),
               };
             });
@@ -255,6 +277,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
       }),
       Control({
         id: "control",
+        towers,
         addTower: ({ x, y, kind }) => {
           updateState((prevState) => {
             return {
@@ -265,8 +288,28 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
                   kind,
                   x,
                   y,
+                  isSelected: false,
+                  kills: 0,
                 },
               ]),
+            };
+          });
+        },
+        selectTower: (tower) => {
+          updateState((prevState) => {
+            const selectedIdx = prevState.towers.findIndex((t) => t.isSelected);
+            let towers = replaceBy(prevState.towers, selectedIdx, {
+              isSelected: false,
+            });
+            if (tower != null) {
+              const idx = towers.findIndex((t) => t === tower);
+              towers = replaceBy(towers, idx, {
+                isSelected: true,
+              });
+            }
+            return {
+              ...prevState,
+              towers,
             };
           });
         },
