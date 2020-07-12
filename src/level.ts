@@ -10,7 +10,10 @@ import {
   KindId as EnemyKindId,
   getEnemyData,
 } from "./enemy";
-import ENEMY_DATA from "./data/enemies.json";
+import { Control } from "./control";
+import { Tower, TowerT } from "./tower";
+import { Bullet, BulletT } from "./bullet";
+import { without, replaceBy } from "./utils.js";
 
 type LevelProps = {
   level: number;
@@ -23,6 +26,8 @@ type LevelState = {
   path: Path;
   pathLengths: PathLengths;
   enemies: EnemyT[];
+  towers: TowerT[];
+  bullets: BulletT[];
 };
 
 type SpawnableEnemy = {
@@ -74,14 +79,16 @@ const levelData: LevelData[] = [
   },
 ];
 
+let enemyCount = 0;
+let towerCount = 0;
+
 export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
   init({ props }) {
     const { path, enemies } = levelData[props.level];
-    let enemyCount = 0;
     const enemyTs: EnemyT[] = [];
     for (const e of enemies) {
       Array.from({ length: e.count }).map((_, idx) => {
-        const data = getEnemyData(ENEMY_DATA, e.kind);
+        const data = getEnemyData(e.kind);
 
         enemyTs.push({
           id: `enemy-${enemyCount}`,
@@ -104,6 +111,8 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
       path: path,
       pathLengths: getPathLengths(path),
       enemies: enemyTs,
+      towers: [],
+      bullets: [],
     };
   },
 
@@ -112,13 +121,19 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
       return state;
     }
 
-    let { t, lives, enemies, pathLengths, path, ...rest } = state;
+    const { pathLengths, path, towers, ...rest } = state;
+    let { t, lives, enemies } = state;
     t++;
 
     // Spawn
     enemies
       .filter((e) => e.status === EnemyStatus.NOT_SPAWNED && t >= e.spawnDelay)
       .forEach((e) => (e.status = EnemyStatus.ACTIVE));
+
+    // Die
+    enemies
+      .filter((e) => e.status === EnemyStatus.ACTIVE && e.health <= 0)
+      .forEach((e) => (e.status = EnemyStatus.DIEING));
 
     // Update active
     enemies
@@ -148,12 +163,19 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     // Remove passed
     enemies = enemies.filter((e) => e.status !== EnemyStatus.PASSED);
 
-    return { t, lives, enemies, pathLengths, path, ...rest };
+    return { ...rest, pathLengths, path, t, lives, enemies, towers };
   },
 
-  render({ state, device }) {
-    const { lives, enemies, path } = state;
+  render({ state, device, updateState }) {
+    const { lives, enemies, path, towers, bullets } = state;
     const { size } = device;
+
+    const dieingEnemies = enemies.filter(
+      (e) => e.status === EnemyStatus.DIEING
+    );
+    const activeEnemies = enemies.filter(
+      (e) => e.status === EnemyStatus.ACTIVE
+    );
 
     return [
       t.rectangle({
@@ -166,15 +188,88 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         thickness: 10,
         path,
       }),
-      ...enemies
-        .filter((e) => e.status === EnemyStatus.ACTIVE)
-        .map(({ id, kind, x, y }) => Enemy({ id, kind, x, y })),
+      ...activeEnemies.map((enemy) =>
+        Enemy({
+          id: enemy.id,
+          enemy,
+        })
+      ),
+      ...dieingEnemies.map((enemy) =>
+        Enemy({
+          id: enemy.id,
+          enemy,
+          die: () => {
+            updateState((prevState) => ({
+              ...prevState,
+              enemies: without(
+                prevState.enemies,
+                prevState.enemies.findIndex((e) => e === enemy)
+              ),
+            }));
+          },
+        })
+      ),
+      ...towers.map((tower) =>
+        Tower({
+          id: tower.id,
+          tower,
+          getEnemiesInRange: () => activeEnemies,
+          fireBullet: (bullet) => {
+            updateState((prevState) => ({
+              ...prevState,
+              bullets: prevState.bullets.concat([bullet]),
+            }));
+          },
+        })
+      ),
+      ...bullets.map((bullet, idx) =>
+        Bullet({
+          id: bullet.id,
+          bullet,
+          getNearbyEnemies: () => activeEnemies,
+          hit: (enemy) => {
+            updateState((prevState) => {
+              const idx = prevState.enemies.findIndex((e) => e === enemy);
+              return {
+                ...prevState,
+                enemies: replaceBy(prevState.enemies, idx, {
+                  health: enemy.health - bullet.damage,
+                }),
+              };
+            });
+          },
+          die: () => {
+            updateState((prevState) => ({
+              ...prevState,
+              bullets: without(bullets, idx),
+            }));
+          },
+        })
+      ),
       t.text({
         text: `Lives: ${lives}`,
         color: "black",
         x: -device.size.width / 2 + 10,
         y: device.size.height / 2 + device.size.heightMargin - 80,
         align: "left",
+      }),
+      Control({
+        id: "control",
+        addTower: ({ x, y, kind }) => {
+          updateState((prevState) => {
+            return {
+              ...prevState,
+              towers: prevState.towers.concat([
+                {
+                  id: `tower-${towerCount++}`,
+                  kind,
+                  x,
+                  y,
+                },
+              ]),
+            };
+          });
+        },
       }),
     ];
   },

@@ -8,6 +8,7 @@ export interface EnemyData {
       health: number;
       speed: number;
       sprite: string;
+      size: number;
     };
   };
 }
@@ -16,6 +17,8 @@ export enum EnemyStatus {
   NOT_SPAWNED,
   ACTIVE,
   PASSED,
+  DIEING,
+  DEAD,
 }
 
 export type Modifier = number;
@@ -42,23 +45,73 @@ export type EnemyT = {
 };
 
 type EnemyProps = {
-  kind: KindId;
+  enemy: EnemyT;
+  // changeStatus: (status: EnemyStatus) => void;
+  die?: () => void;
 };
 
-export const enemyWidth = 20;
-export const enemyHeight = 20;
+type EnemyState = {
+  deathAnimationF: number;
+};
 
-export const getEnemyData = (data: EnemyData, kind: KindId) => data.kinds[kind];
+const DEATH_ANIMATION_FRAMES = 10;
 
-export const Enemy = makeSprite<EnemyProps>({
-  render({ props }) {
-    const { kind } = props;
-    return [
-      t.text({
-        font: { name: "Calibri", size: 24 },
-        text: getEnemyData(ENEMY_DATA, kind).sprite,
-        color: "#ff0000",
-      }),
-    ];
+export const getEnemyData = (kind: KindId) =>
+  (ENEMY_DATA as EnemyData).kinds[kind];
+
+export const Enemy = makeSprite<EnemyProps, EnemyState>({
+  init() {
+    return {
+      deathAnimationF: 0,
+    };
+  },
+
+  loop({ props, state }) {
+    let { deathAnimationF } = state;
+    const { enemy, die } = props;
+    const { status } = enemy;
+
+    if (status === EnemyStatus.DIEING) {
+      deathAnimationF++;
+
+      if (die && deathAnimationF > DEATH_ANIMATION_FRAMES) {
+        die();
+      }
+    }
+
+    return {
+      deathAnimationF,
+    };
+  },
+
+  render({ props, state }) {
+    const {
+      enemy: { kind, x, y, status },
+    } = props;
+    const { deathAnimationF } = state;
+    const { sprite, size } = getEnemyData(kind);
+    if (status === EnemyStatus.DIEING) {
+      return [
+        t.text({
+          font: { name: "Calibri", size },
+          text: "💥",
+          color: "black",
+          x,
+          y,
+          opacity:
+            (DEATH_ANIMATION_FRAMES - deathAnimationF) / DEATH_ANIMATION_FRAMES,
+        }),
+      ];
+    } else {
+      return [
+        t.text({
+          font: { name: "Calibri", size },
+          text: sprite,
+          color: "black",
+          x,
+          y,
+        }),
+      ];
+    }
   },
 });

@@ -1,19 +1,22 @@
 {
   "kinds": {
     "0": {
-      "health": 100,
+      "health": 1,
       "speed": 1,
-      "sprite": "🍆"
+      "sprite": "🍆",
+      "size": 24
     },
     "1": {
-      "health": 100,
+      "health": 2,
       "speed": 2,
-      "sprite": "🌹"
+      "sprite": "🌹",
+      "size": 24
     },
     "2": {
-      "health": 100,
+      "health": 3,
       "speed": 3,
-      "sprite": "🙃"
+      "sprite": "🙃",
+      "size": 24
     }
   }
 }

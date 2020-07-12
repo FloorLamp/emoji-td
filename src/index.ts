@@ -36,20 +36,6 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
   },
 
   loop({ state }) {
-    // const { pointer } = device.inputs;
-    // const { posX, posY } = state;
-    // let { targetX, targetY } = state;
-    // if (pointer.justPressed) {
-    //   // device.audio("boop.wav").play();
-    //   targetX = pointer.x;
-    //   targetY = pointer.y;
-    // }
-    // return {
-    //   posX: posX + (targetX - posX) / 10,
-    //   posY: posY + (targetY - posY) / 10,
-    //   targetX,
-    //   targetY,
-    // };
     return state;
   },
 
