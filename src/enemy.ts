@@ -10,6 +10,7 @@ export interface EnemyData {
       speed: number;
       sprite: string;
       size: number;
+      money: number;
     };
   };
 }
@@ -43,6 +44,7 @@ export type EnemyT = {
   health: number;
   status: EnemyStatus;
   speed: number;
+  money: number;
   lastBullet: BulletT | null;
 };
 

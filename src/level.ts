@@ -28,6 +28,7 @@ type LevelProps = {
 
 type LevelState = {
   t: number;
+  money: number;
   lives: number;
   path: Path;
   pathLengths: PathLengths;
@@ -94,7 +95,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     const enemyTs: EnemyT[] = [];
     for (const e of enemies) {
       Array.from({ length: e.count }).map((_, idx) => {
-        const data = getEnemyData(e.kind);
+        const { health, speed, money } = getEnemyData(e.kind);
 
         enemyTs.push({
           id: `enemy-${enemyCount}`,
@@ -104,16 +105,18 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           x: path[0][0],
           y: path[0][1],
           distance: 0,
-          health: data.health,
+          health,
           status: EnemyStatus.NOT_SPAWNED,
-          speed: data.speed,
+          speed,
           lastBullet: null,
+          money,
         });
         enemyCount++;
       });
     }
     return {
       t: 0,
+      money: 10,
       lives: 100,
       path: path,
       pathLengths: getPathLengths(path),
@@ -129,7 +132,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     }
 
     const { pathLengths, path, ...rest } = state;
-    let { t, lives, towers, enemies } = state;
+    let { t, money, lives, towers, enemies } = state;
     t++;
 
     // Spawn
@@ -151,6 +154,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           towers = replaceBy(towers, towerIdx, {
             kills: towers[towerIdx].kills + 1,
           });
+          money += e.money;
         }
       });
 
@@ -181,11 +185,11 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     // Remove passed
     enemies = enemies.filter((e) => e.status !== EnemyStatus.PASSED);
 
-    return { ...rest, pathLengths, path, t, lives, enemies, towers };
+    return { ...rest, pathLengths, path, t, money, lives, enemies, towers };
   },
 
   render({ state, device, updateState }) {
-    const { lives, enemies, path, towers, bullets } = state;
+    const { lives, money, enemies, path, towers, bullets } = state;
     const { size } = device;
 
     const dieingEnemies = enemies.filter(
@@ -275,13 +279,22 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         y: device.size.height / 2 + device.size.heightMargin - 80,
         align: "left",
       }),
+      t.text({
+        text: `Money: ${money}`,
+        color: "black",
+        x: -device.size.width / 2 + 10,
+        y: device.size.height / 2 + device.size.heightMargin - 60,
+        align: "left",
+      }),
       Control({
         id: "control",
         towers,
-        addTower: ({ x, y, kind }) => {
+        money,
+        addTower: ({ x, y, kind, cost }) => {
           updateState((prevState) => {
             return {
               ...prevState,
+              money: prevState.money - cost,
               towers: prevState.towers.concat([
                 {
                   id: `tower-${towerCount++}`,

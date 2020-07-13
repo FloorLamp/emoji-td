@@ -2,6 +2,7 @@
   "0": {
     "sprite": "0️⃣",
     "spriteSize": 32,
+    "cost": 2,
     "attack": "bullet",
     "range": 100,
     "delay": 60,
@@ -17,6 +18,7 @@
   "1": {
     "sprite": "1️⃣",
     "spriteSize": 32,
+    "cost": 5,
     "attack": "bullet",
     "range": 100,
     "delay": 45,
@@ -32,6 +34,7 @@
   "2": {
     "sprite": "2️⃣",
     "spriteSize": 32,
+    "cost": 10,
     "attack": "bullet",
     "range": 100,
     "delay": 30,
@@ -40,6 +43,22 @@
       "color": "red",
       "spriteSize": 48,
       "speed": 7,
+      "damage": 1,
+      "hits": 2
+    }
+  },
+  "3": {
+    "sprite": "3️⃣",
+    "spriteSize": 32,
+    "cost": 20,
+    "attack": "bullet",
+    "range": 100,
+    "delay": 10,
+    "bullet": {
+      "sprite": "·",
+      "color": "hotpink",
+      "spriteSize": 48,
+      "speed": 8,
       "damage": 1,
       "hits": 2
     }

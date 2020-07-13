@@ -11,6 +11,7 @@ export interface TowerData {
   [key: string]: {
     sprite: string;
     spriteSize: number;
+    cost: number;
     attack: string;
     range: number;
     delay: number;

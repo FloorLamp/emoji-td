@@ -4,19 +4,22 @@
       "health": 1,
       "speed": 1,
       "sprite": "🍆",
-      "size": 24
+      "size": 24,
+      "money": 1
     },
     "1": {
       "health": 2,
       "speed": 2,
       "sprite": "🌹",
-      "size": 24
+      "size": 24,
+      "money": 1
     },
     "2": {
       "health": 3,
       "speed": 3,
       "sprite": "🙃",
-      "size": 24
+      "size": 24,
+      "money": 1
     }
   }
 }
