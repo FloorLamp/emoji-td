@@ -2,13 +2,14 @@ import { makeSprite, t } from "@replay/core";
 import { WebInputs } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
 
+import MAP_DATA from "./data/maps.json";
 import {
   Path,
   PathLengths,
   getPathLengths,
   interpolateDistance,
   isWithinCircle,
-} from "./map";
+} from "./utils.js/math";
 import {
   Enemy,
   EnemyT,
@@ -20,14 +21,36 @@ import { Control } from "./control";
 import { Tower, TowerT } from "./tower";
 import { Bullet, BulletT } from "./bullet";
 import { without, replaceBy } from "./utils.js";
+import { GameStatus } from ".";
+import { PauseButton } from "./buttons/pause";
+import { RestartButton } from "./buttons/restart";
+
+type SpawnableEnemy = {
+  kind: EnemyKindId;
+  delay: number;
+  interval: number;
+  count: number;
+};
+
+interface MapData {
+  waves: SpawnableEnemy[][];
+  path: Path;
+}
+
+export const getMapData = (idx: number) => (MAP_DATA as MapData[])[idx];
 
 type LevelProps = {
-  level: number;
-  paused: boolean;
+  map: number;
+  status: GameStatus;
+  isNewGame: boolean;
+  setStatus: (status: GameStatus) => void;
+  startGame: () => void;
+  restartGame: () => void;
 };
 
 type LevelState = {
-  t: number;
+  wave: number;
+  f: number;
   money: number;
   lives: number;
   path: Path;
@@ -37,107 +60,94 @@ type LevelState = {
   bullets: BulletT[];
 };
 
-type SpawnableEnemy = {
-  kind: EnemyKindId;
-  delay: number;
-  interval: number;
-  count: number;
-};
-
-type LevelData = {
-  enemies: SpawnableEnemy[];
-  path: Path;
-};
-
-const levelData: LevelData[] = [
-  {
-    enemies: [
-      {
-        kind: "0",
-        delay: 10,
-        interval: 15,
-        count: 50,
-      },
-      {
-        kind: "1",
-        delay: 100,
-        interval: 30,
-        count: 10,
-      },
-      {
-        kind: "2",
-        delay: 200,
-        interval: 100,
-        count: 5,
-      },
-    ],
-    path: [
-      [-400, 0],
-      [-50, 0],
-      [-50, 100],
-      [-150, 100],
-      [-150, -100],
-      [150, -100],
-      [150, 100],
-      [50, 100],
-      [50, 0],
-      [400, 0],
-    ],
-  },
-];
-
-let enemyCount = 0;
 let towerCount = 0;
+
+const spawnEnemies = (map: MapData, wave: number) => {
+  const enemies: EnemyT[] = [];
+  for (const e of map.waves[wave]) {
+    Array.from({ length: e.count }).map((_, idx) => {
+      const { health, speed, money } = getEnemyData(e.kind);
+
+      enemies.push({
+        id: `enemy-${wave}-${idx}`,
+        kind: e.kind,
+        spawnDelay: e.delay + idx * e.interval,
+        modifiers: [],
+        x: map.path[0][0],
+        y: map.path[0][1],
+        distance: 0,
+        health,
+        status: EnemyStatus.NOT_SPAWNED,
+        speed,
+        lastBullet: null,
+        money,
+      });
+    });
+  }
+  return enemies;
+};
+
+const getStateFromProps = (props: LevelProps) => {
+  const { map } = props;
+  const mapData = getMapData(map);
+  const { path } = mapData;
+  const wave = 0;
+
+  return {
+    wave,
+    f: -300,
+    money: 10,
+    lives: 100,
+    path: path,
+    pathLengths: getPathLengths(path),
+    enemies: spawnEnemies(mapData, wave),
+    towers: [],
+    bullets: [],
+  };
+};
 
 export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
   init({ props }) {
-    const { path, enemies } = levelData[props.level];
-    const enemyTs: EnemyT[] = [];
-    for (const e of enemies) {
-      Array.from({ length: e.count }).map((_, idx) => {
-        const { health, speed, money } = getEnemyData(e.kind);
-
-        enemyTs.push({
-          id: `enemy-${enemyCount}`,
-          kind: e.kind,
-          spawnDelay: e.delay + idx * e.interval,
-          modifiers: [],
-          x: path[0][0],
-          y: path[0][1],
-          distance: 0,
-          health,
-          status: EnemyStatus.NOT_SPAWNED,
-          speed,
-          lastBullet: null,
-          money,
-        });
-        enemyCount++;
-      });
-    }
-    return {
-      t: 0,
-      money: 10,
-      lives: 100,
-      path: path,
-      pathLengths: getPathLengths(path),
-      enemies: enemyTs,
-      towers: [],
-      bullets: [],
-    };
+    return getStateFromProps(props);
   },
 
   loop({ props, state }) {
-    if (props.paused) {
+    if (props.isNewGame) {
+      props.startGame();
+      return getStateFromProps(props);
+    }
+    if (props.status !== GameStatus.RUNNING) {
       return state;
     }
 
     const { pathLengths, path, ...rest } = state;
-    let { t, money, lives, towers, enemies } = state;
-    t++;
+    let { f, wave, money, lives, towers, enemies } = state;
+
+    // Next wave
+    if (!enemies.length) {
+      const mapData = getMapData(props.map);
+      if (f > 0) {
+        wave++;
+
+        if (wave === mapData.waves.length) {
+          // Last wave passed, show victory
+          props.setStatus(GameStatus.VICTORY);
+          return state;
+        } else {
+          // Delay until next wave
+          f = -300;
+        }
+      } else if (f === 0) {
+        enemies = spawnEnemies(mapData, wave);
+      }
+    }
+
+    // Increment frame
+    f++;
 
     // Spawn
     enemies
-      .filter((e) => e.status === EnemyStatus.NOT_SPAWNED && t >= e.spawnDelay)
+      .filter((e) => e.status === EnemyStatus.NOT_SPAWNED && f >= e.spawnDelay)
       .forEach((e) => (e.status = EnemyStatus.ACTIVE));
 
     // Die
@@ -185,11 +195,27 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     // Remove passed
     enemies = enemies.filter((e) => e.status !== EnemyStatus.PASSED);
 
-    return { ...rest, pathLengths, path, t, money, lives, enemies, towers };
+    // Defeat condition
+    if (lives < 0) {
+      lives = 0;
+      props.setStatus(GameStatus.DEFEAT);
+    }
+
+    return {
+      ...rest,
+      wave,
+      pathLengths,
+      path,
+      f,
+      money,
+      lives,
+      enemies,
+      towers,
+    };
   },
 
-  render({ state, device, updateState }) {
-    const { lives, money, enemies, path, towers, bullets } = state;
+  render({ props, state, device, updateState }) {
+    const { wave, lives, money, enemies, path, towers, bullets } = state;
     const { size } = device;
 
     const dieingEnemies = enemies.filter(
@@ -273,23 +299,31 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         })
       ),
       t.text({
+        text: `Wave: ${wave + 1}`,
+        color: "black",
+        x: -device.size.width / 2,
+        y: device.size.height / 2 + device.size.heightMargin - 50,
+        align: "left",
+      }),
+      t.text({
         text: `Lives: ${lives}`,
         color: "black",
-        x: -device.size.width / 2 + 10,
-        y: device.size.height / 2 + device.size.heightMargin - 80,
+        x: -device.size.width / 2,
+        y: device.size.height / 2 + device.size.heightMargin - 65,
         align: "left",
       }),
       t.text({
         text: `Money: ${money}`,
         color: "black",
-        x: -device.size.width / 2 + 10,
-        y: device.size.height / 2 + device.size.heightMargin - 60,
+        x: -device.size.width / 2,
+        y: device.size.height / 2 + device.size.heightMargin - 80,
         align: "left",
       }),
       Control({
         id: "control",
         towers,
         money,
+        gameStatus: props.status,
         addTower: ({ x, y, kind, cost }) => {
           updateState((prevState) => {
             return {
@@ -326,6 +360,15 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
             };
           });
         },
+      }),
+      PauseButton({
+        id: "pause",
+        gameStatus: props.status,
+        setGameStatus: props.setStatus,
+      }),
+      RestartButton({
+        id: "restart",
+        restartGame: props.restartGame,
       }),
     ];
   },

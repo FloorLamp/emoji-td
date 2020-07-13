@@ -3,7 +3,7 @@ import { makeSprite, t } from "@replay/core";
 import TOWER_DATA from "./data/towers.json";
 import { EnemyT } from "./enemy";
 import { BulletT } from "./bullet";
-import { Speed } from "./map";
+import { Speed } from "./utils.js/math";
 
 // export type Attack = "bullet" | "other";
 

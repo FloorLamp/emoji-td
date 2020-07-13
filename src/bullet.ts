@@ -1,5 +1,10 @@
 import { makeSprite, t } from "@replay/core";
-import { Point, Speed, getVelocityVector, isWithinSquare } from "./map";
+import {
+  Point,
+  Speed,
+  getVelocityVector,
+  isWithinSquare,
+} from "./utils.js/math";
 import { EnemyT, getEnemyData } from "./enemy";
 
 export type BulletT = {

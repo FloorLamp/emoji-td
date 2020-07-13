@@ -3,9 +3,11 @@ import { WebInputs } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
 
 import { TowerKindId, getTowerData, TowerT } from "./tower";
-import { Point, isWithinRect, isWithinSquare } from "./map";
+import { Point, isWithinRect, isWithinSquare } from "./utils.js/math";
+import { GameStatus } from ".";
 
 type ControlProps = {
+  gameStatus: GameStatus;
   towers: TowerT[];
   money: number;
   addTower: (t: {
@@ -79,7 +81,11 @@ export const Control = makeSprite<
   },
 
   loop({ props, state, device }) {
-    const { money } = props;
+    const { gameStatus, money } = props;
+    if (gameStatus !== GameStatus.RUNNING) {
+      return state;
+    }
+
     const { towerButtons } = state;
     let { action, placeTowerKind } = state;
     const { inputs, size } = device;
@@ -90,7 +96,7 @@ export const Control = makeSprite<
       switch (action) {
         case ControlAction.NONE:
           if (pointer.y < boundsTop) {
-            // Click on level object
+            // Click in control area
             const clickedButton = towerButtons.find((tb) => {
               const { cost } = getTowerData(tb.kind);
               return (
@@ -104,7 +110,7 @@ export const Control = makeSprite<
               placeTowerKind = clickedButton.kind;
             }
           } else {
-            // Click in control area
+            // Click in level area
             const clickedTower = props.towers.find((t) => {
               const { spriteSize } = getTowerData(t.kind);
               return isWithinSquare(
@@ -170,10 +176,12 @@ export const Control = makeSprite<
           ]
         : [];
 
+    const width = size.width + size.widthMargin * 2;
+
     return [
       t.rectangle({
         color: "#ccc",
-        width: size.width + size.widthMargin * 2,
+        width,
         height: boxHeight,
         y: -(size.height + size.heightMargin * 2) / 2 + boxHeight / 2,
       }),
