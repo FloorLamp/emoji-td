@@ -19,7 +19,7 @@ export enum EnemyStatus {
   NOT_SPAWNED,
   ACTIVE,
   PASSED,
-  DIEING,
+  DEATH_START,
   DEAD,
 }
 
@@ -55,7 +55,7 @@ type EnemyProps = {
 };
 
 type EnemyState = {
-  deathAnimationF: number;
+  deathFrame: number;
 };
 
 const DEATH_ANIMATION_FRAMES = 10;
@@ -66,26 +66,26 @@ export const getEnemyData = (kind: KindId) =>
 export const Enemy = makeSprite<EnemyProps, EnemyState>({
   init() {
     return {
-      deathAnimationF: 0,
+      deathFrame: 0,
     };
   },
 
   loop({ props, state }) {
-    let { deathAnimationF } = state;
+    let { deathFrame } = state;
     const { enemy, die } = props;
     const { status } = enemy;
 
-    if (status === EnemyStatus.DIEING) {
-      deathAnimationF++;
+    if (status === EnemyStatus.DEATH_START) {
+      deathFrame++;
 
-      if (die && deathAnimationF >= DEATH_ANIMATION_FRAMES) {
+      if (die && deathFrame >= DEATH_ANIMATION_FRAMES) {
         die();
-        deathAnimationF = DEATH_ANIMATION_FRAMES;
+        deathFrame = DEATH_ANIMATION_FRAMES;
       }
     }
 
     return {
-      deathAnimationF,
+      deathFrame,
     };
   },
 
@@ -93,9 +93,9 @@ export const Enemy = makeSprite<EnemyProps, EnemyState>({
     const {
       enemy: { kind, x, y, status },
     } = props;
-    const { deathAnimationF } = state;
+    const { deathFrame } = state;
     const { sprite, size } = getEnemyData(kind);
-    if (status === EnemyStatus.DIEING) {
+    if (status === EnemyStatus.DEATH_START) {
       return [
         t.text({
           font: { name: "Calibri", size },
@@ -104,7 +104,7 @@ export const Enemy = makeSprite<EnemyProps, EnemyState>({
           x,
           y,
           opacity:
-            (DEATH_ANIMATION_FRAMES - deathAnimationF) / DEATH_ANIMATION_FRAMES,
+            (DEATH_ANIMATION_FRAMES - deathFrame) / DEATH_ANIMATION_FRAMES,
         }),
       ];
     } else {

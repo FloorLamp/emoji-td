@@ -52,15 +52,16 @@
     "spriteSize": 32,
     "cost": 20,
     "attack": "bullet",
-    "range": 100,
-    "delay": 10,
+    "range": 150,
+    "delay": 90,
     "bullet": {
-      "sprite": "·",
-      "color": "hotpink",
-      "spriteSize": 48,
-      "speed": 8,
+      "sprite": "🍅",
+      "spriteSize": 16,
+      "speed": 4,
       "damage": 1,
-      "hits": 2
+      "hits": 1,
+      "splash": true,
+      "splashRadius": 30
     }
   }
 }

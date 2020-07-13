@@ -154,7 +154,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     enemies
       .filter((e) => e.status === EnemyStatus.ACTIVE && e.health <= 0)
       .forEach((e) => {
-        e.status = EnemyStatus.DIEING;
+        e.status = EnemyStatus.DEATH_START;
 
         // Increment tower kill count
         if (e.lastBullet) {
@@ -219,7 +219,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     const { size } = device;
 
     const dieingEnemies = enemies.filter(
-      (e) => e.status === EnemyStatus.DIEING
+      (e) => e.status === EnemyStatus.DEATH_START
     );
     const activeEnemies = enemies.filter(
       (e) => e.status === EnemyStatus.ACTIVE
