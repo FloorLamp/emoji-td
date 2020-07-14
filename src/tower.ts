@@ -81,6 +81,7 @@ export const Tower = makeSprite<TowerProps, TowerState>({
             towerId: id,
             source: [x, y],
             target: [targets[0].x, targets[0].y],
+            targetEnemy: targets[0].id,
           });
           f++;
         }
@@ -93,7 +94,7 @@ export const Tower = makeSprite<TowerProps, TowerState>({
     };
   },
 
-  render({ props, state, device }) {
+  render({ props, device }) {
     const { kind, x, y, isSelected, kills } = props.tower;
     const { sprite, range } = getTowerData(kind);
     const { size } = device;

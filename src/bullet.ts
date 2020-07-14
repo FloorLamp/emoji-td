@@ -6,7 +6,7 @@ import {
   isWithinSquare,
   isWithinCircle,
 } from "./utils.js/math";
-import { EnemyT, getEnemyData } from "./enemy";
+import { EnemyT, getEnemyData, EnemyStatus } from "./enemy";
 
 export type BulletT = {
   readonly id: string;
@@ -16,16 +16,19 @@ export type BulletT = {
   spriteSize: number;
   source: Point;
   target: Point;
+  targetEnemy?: string;
   speed: Speed;
   damage: number;
   hits: number;
   splash?: boolean;
   splashRadius?: number;
+  homing?: boolean;
+  rotateByVelocity?: number;
 };
 
 type BulletProps = {
   bullet: BulletT;
-  getNearbyEnemies: () => EnemyT[];
+  activeEnemies: EnemyT[];
   hit: (enemy: EnemyT) => void;
   die: () => void;
 };
@@ -44,13 +47,14 @@ type BulletState = {
   dy: number;
   hits: number;
   deathFrame: number;
+  targetEnemy?: string;
 };
 
 const DEATH_ANIMATION_FRAMES = 10;
 
 export const Bullet = makeSprite<BulletProps, BulletState>({
   init({ props }) {
-    const { source, target, speed, hits } = props.bullet;
+    const { source, target, speed, hits, targetEnemy } = props.bullet;
     const v = getVelocityVector(source, target, speed);
     return {
       status: BulletStatus.DEFAULT,
@@ -60,14 +64,14 @@ export const Bullet = makeSprite<BulletProps, BulletState>({
       dy: v[1],
       hits,
       deathFrame: 0,
+      targetEnemy,
     };
   },
 
   loop({ props, state, device }) {
-    const { bullet, getNearbyEnemies, hit, die } = props;
-    const { splash, splashRadius } = bullet;
-    let { status, x, y, hits, deathFrame } = state;
-    const { dx, dy } = state;
+    const { bullet, activeEnemies, hit, die } = props;
+    const { speed, splash, splashRadius, homing } = bullet;
+    let { status, x, y, dx, dy, hits, deathFrame, targetEnemy } = state;
     const { size } = device;
     const xBounds = (size.width + size.widthMargin * 2) / 2;
     const yBounds = (size.height + size.heightMargin * 2) / 2;
@@ -81,8 +85,31 @@ export const Bullet = makeSprite<BulletProps, BulletState>({
         return state;
       }
 
-      const enemies = getNearbyEnemies();
-      for (const enemy of enemies) {
+      if (homing) {
+        const originalTarget = activeEnemies.find((e) => e.id === targetEnemy);
+        let currentTarget = originalTarget;
+        if (!originalTarget || originalTarget.status !== EnemyStatus.ACTIVE) {
+          // Head towards furthest enemy
+          currentTarget = activeEnemies.sort(
+            (a, b) => b.distance - a.distance
+          )[0];
+
+          if (currentTarget) {
+            targetEnemy = currentTarget.id;
+          }
+        }
+        if (currentTarget) {
+          const v = getVelocityVector(
+            [x, y],
+            [currentTarget.x, currentTarget.y],
+            speed
+          );
+          dx = v[0];
+          dy = v[1];
+        }
+      }
+
+      for (const enemy of activeEnemies) {
         const { size } = getEnemyData(enemy.kind);
         if (
           enemy.health > 0 &&
@@ -90,7 +117,7 @@ export const Bullet = makeSprite<BulletProps, BulletState>({
         ) {
           hits--;
           if (splash && splashRadius != null) {
-            for (const splashed of enemies.filter((e) =>
+            for (const splashed of activeEnemies.filter((e) =>
               isWithinCircle([e.x, e.y], [x, y], splashRadius)
             )) {
               hit(splashed);
@@ -130,6 +157,7 @@ export const Bullet = makeSprite<BulletProps, BulletState>({
       dy,
       hits,
       deathFrame,
+      targetEnemy,
     };
   },
 

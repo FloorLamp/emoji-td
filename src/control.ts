@@ -2,6 +2,7 @@ import { makeSprite, t, DeviceSize } from "@replay/core";
 import { WebInputs } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
 
+import TOWER_DATA from "./data/towers.json";
 import { TowerKindId, getTowerData, TowerT } from "./tower";
 import { Point, isWithinRect, isWithinSquare } from "./utils.js/math";
 import { GameStatus } from ".";
@@ -68,7 +69,7 @@ export const Control = makeSprite<
 >({
   init({ device }) {
     const { size } = device;
-    const initialTowers = ["0", "1", "2", "3"].map((kind) => ({
+    const initialTowers = Object.keys(TOWER_DATA).map((kind) => ({
       kind,
       x: 0,
       y: 0,

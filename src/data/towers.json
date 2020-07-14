@@ -63,5 +63,21 @@
       "splash": true,
       "splashRadius": 30
     }
+  },
+  "4": {
+    "sprite": "4️⃣",
+    "spriteSize": 32,
+    "cost": 20,
+    "attack": "bullet",
+    "range": 150,
+    "delay": 90,
+    "bullet": {
+      "sprite": "🥖",
+      "spriteSize": 16,
+      "speed": 4,
+      "damage": 3,
+      "hits": 1,
+      "homing": true
+    }
   }
 }

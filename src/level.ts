@@ -20,7 +20,7 @@ import {
 import { Control } from "./control";
 import { Tower, TowerT } from "./tower";
 import { Bullet, BulletT } from "./bullet";
-import { without, replaceBy } from "./utils.js";
+import { without, replaceBy, reject } from "./utils.js";
 import { GameStatus } from ".";
 import { PauseButton } from "./buttons/pause";
 import { RestartButton } from "./buttons/restart";
@@ -43,6 +43,7 @@ type LevelProps = {
   map: number;
   status: GameStatus;
   isNewGame: boolean;
+  debug: boolean;
   setStatus: (status: GameStatus) => void;
   startGame: () => void;
   restartGame: () => void;
@@ -88,7 +89,7 @@ const spawnEnemies = (map: MapData, wave: number) => {
 };
 
 const getStateFromProps = (props: LevelProps) => {
-  const { map } = props;
+  const { debug, map } = props;
   const mapData = getMapData(map);
   const { path } = mapData;
   const wave = 0;
@@ -96,8 +97,8 @@ const getStateFromProps = (props: LevelProps) => {
   return {
     wave,
     f: -300,
-    money: 10,
-    lives: 100,
+    money: debug ? 100000 : 10,
+    lives: debug ? 100000 : 100,
     path: path,
     pathLengths: getPathLengths(path),
     enemies: spawnEnemies(mapData, wave),
@@ -192,8 +193,11 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         return;
       });
 
-    // Remove passed
-    enemies = enemies.filter((e) => e.status !== EnemyStatus.PASSED);
+    // Remove dead and passed
+    enemies = reject(
+      enemies,
+      (e) => e.status === EnemyStatus.PASSED || e.status === EnemyStatus.DEAD
+    );
 
     // Defeat condition
     if (lives < 0) {
@@ -249,9 +253,10 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           die: () => {
             updateState((prevState) => ({
               ...prevState,
-              enemies: without(
+              enemies: replaceBy(
                 prevState.enemies,
-                prevState.enemies.findIndex((e) => e === enemy)
+                prevState.enemies.findIndex((e) => e === enemy),
+                { status: EnemyStatus.DEAD }
               ),
             }));
           },
@@ -277,7 +282,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         Bullet({
           id: bullet.id,
           bullet,
-          getNearbyEnemies: () => activeEnemies,
+          activeEnemies,
           hit: (enemy) => {
             updateState((prevState) => {
               const idx = prevState.enemies.findIndex((e) => e === enemy);

@@ -35,9 +35,15 @@ type GameState = {
   map: number;
   status: GameStatus;
   isNewGame: boolean;
+  debug: boolean;
 };
 
-const INITIAL_STATE = { map: 0, status: GameStatus.RUNNING, isNewGame: true };
+const INITIAL_STATE = {
+  map: 0,
+  status: GameStatus.RUNNING,
+  isNewGame: true,
+  debug: process.env.NODE_ENV === "development",
+};
 
 export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
   init() {
@@ -48,8 +54,9 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
     return state;
   },
 
-  render({ state, updateState }) {
-    const { map, status, isNewGame } = state;
+  render({ state, device, updateState }) {
+    const { map, status, isNewGame, debug } = state;
+    const { size } = device;
 
     let gameStatus = null;
     if (status === GameStatus.PAUSED) {
@@ -77,12 +84,22 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
         y: 0,
       });
 
+    const debugStatus = debug
+      ? t.text({
+          text: "Debug",
+          color: "black",
+          x: -(size.width + size.widthMargin * 2) / 2 + 30,
+          y: (size.height + size.heightMargin * 2) / 2 - 15,
+        })
+      : null;
+
     return [
       Level({
         id: "level",
         map,
         status,
         isNewGame,
+        debug,
         setStatus: (status) =>
           updateState((prevState) => ({ ...prevState, status })),
         startGame: () =>
@@ -90,6 +107,7 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
         restartGame: () => updateState(() => INITIAL_STATE),
       }),
       gameStatus,
+      debugStatus,
     ];
   },
 });
